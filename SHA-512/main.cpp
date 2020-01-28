@@ -23,6 +23,13 @@ using namespace std;
 // CH 함수 (default로 정의된 함수)
 #define CH(x,y,z) ((x&y)^((~x)&z))
 
+/* SHA-256 함수
+    #define SUM_0(x) (ROTR(x,  2) ^ ROTR(x, 13) ^ ROTR(x, 22))
+    #define SUM_1(x) (ROTR(x,  6) ^ ROTR(x, 11) ^ ROTR(x, 25))
+    #define SIGMA_0(x) (ROTR(x,  7) ^ ROTR(x, 18) ^ SHFR(x,  3))
+    #define SIGMA_1(x) (ROTR(x, 17) ^ ROTR(x, 19) ^ SHFR(x, 10))
+*/
+
 // default로 정의된 처음 해쉬값 (처음 해쉬값 8개 (2,3,5,7,11,13,17,19)의 제곱근에 소수부분 취함
 ULL H0[8] =
         {
@@ -189,19 +196,60 @@ string padding_message(const string &message)
     }
     return pm; // 128 byte (= 1024bit) padding message return
 }
+/*
+ * input string :
+ * abcdefghbcdefghicdefghijdefghijkefghijklfghijklmghijklmnhijklmnoijklmnopjklmnopqklmnopqrlmnopqrsmnopqrstnopqrstu
+ * abc
+*/
+string decimal_to_hex(ULL a)
+{
+    vector<ULL> v(64,0);
+    string s;
+    int i = 0;
+    ULL tmp = a;
+    while(tmp != 0)
+    {
+        v[i] = tmp % 2;
+        tmp /= 2;
+        i++;
+    }
+    for(int k = 0; k < 64; k++)
+        s += to_string(v[k]);
+    reverse(s.begin(),s.end());
+    return binary_to_HEX(s);
+}
 string SHA2_512( string message )
 {
     message = padding_message( message );
-    cout << "message size is = " << message.size() << endl;
+    cout << "메세지 사이즈 = " << message.size() << endl;
+    cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n\n";
+    cout << "패딩 메시지 (0이 아닌수에서 연속된 f는 자릿수 맞추기위함) : \n";
+    for(int i = 0; i < message.size(); i++)
+    {
+        if(i % 8 == 0)
+            cout << " ";
+        else if(i % 64 == 0)
+            cout << endl;
+        printf("%x",message[i]);
+    }
+    cout << "\nㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
+    cout << endl;
     ULL message_block_count = ( message.size() * 8 ) / 1024;
-
+    cout << "블럭 수 = " << message_block_count << endl;
+    cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
+//    110101000001001111001100110011111110011101111001100100000000000
+//    110101000001001111001100110011111110011101111001100100100001000
     for ( size_t i = 1; i <= message_block_count; i++ )
     {
         vector<ULL> W( 80, 0 );
+        // 첫 16개 W는 패딩된 메시지의 8바이트 부분
+        printf("%d 번째 블럭의 W[0]~W[15] : \n",i);
         for ( int t = 0; t < 16; t++ )
         {
             W[t] = get_word_from_block( message, i - 1, t );
+            cout << W[t] << " ";
         }
+        cout << "\nㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
         for ( int t = 16; t < 80; t++ )
         {
             W[t] = SIGMA_1( W[t - 2] ) + W[t - 7] + SIGMA_0( W[t - 15] ) + W[t - 16];
@@ -214,6 +262,11 @@ string SHA2_512( string message )
         ULL f = H0[5];
         ULL g = H0[6];
         ULL h = H0[7];
+        // 80 라운드
+
+        cout << "a : " << decimal_to_hex(a) << " b : " << decimal_to_hex(b) << " c : " << decimal_to_hex(c) << " d : " << decimal_to_hex(d) << endl
+             << "e : " << decimal_to_hex(e) << " f : " << decimal_to_hex(f) << " g : " << decimal_to_hex(g) << " h : " << decimal_to_hex(h) << endl;
+        cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
         for ( int t = 0; t < 80; t++ )
         {
             ULL T1 = h + CH(e,f,g) + SUM_1(e) + W[t] + K[t];
@@ -226,6 +279,22 @@ string SHA2_512( string message )
             c = b;
             b = a;
             a = T1 + T2;
+            if(t < 2) {
+                cout << "a : " << decimal_to_hex(a) << " b : " << decimal_to_hex(b) << " c : " << decimal_to_hex(c)
+                     << " d : " << decimal_to_hex(d) << endl
+                     << "e : " << decimal_to_hex(e) << " f : " << decimal_to_hex(f) << " g : " << decimal_to_hex(g)
+                     << " h : " << decimal_to_hex(h) << endl;
+                cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
+            }
+            if(t > 30 && t < 35)
+                cout << "                        .                                   \n";
+            if(t > 76) {
+                cout << "a : " << decimal_to_hex(a) << " b : " << decimal_to_hex(b) << " c : " << decimal_to_hex(c)
+                     << " d : " << decimal_to_hex(d) << endl
+                     << "e : " << decimal_to_hex(e) << " f : " << decimal_to_hex(f) << " g : " << decimal_to_hex(g)
+                     << " h : " << decimal_to_hex(h) << endl;
+                cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
+            }
         }
         H0[0] += a;
         H0[1] += b;
@@ -235,7 +304,19 @@ string SHA2_512( string message )
         H0[5] += f;
         H0[6] += g;
         H0[7] += h;
+        cout << "최종 H0[0] ~ H0[7] 값 (이것들을 다 이어 붙이면 최종 해시값이 나온다 \n";
+        cout << "a : " << decimal_to_hex(H0[0]) << " b : " << decimal_to_hex(H0[1]) << " c : " << decimal_to_hex(H0[2])
+             << " d : " << decimal_to_hex(H0[3]) << endl
+             << "e : " << decimal_to_hex(H0[4]) << " f : " << decimal_to_hex(H0[5]) << " g : " << decimal_to_hex(H0[6])
+             << " h : " << decimal_to_hex(H0[7]) << endl;
+        cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
     }
+    cout << " 최종 해시 값 : \n";
+    cout << decimal_to_hex(H0[0]) << " " << decimal_to_hex(H0[1]) << " " << decimal_to_hex(H0[2])
+         << " " << decimal_to_hex(H0[3]) << endl
+         << decimal_to_hex(H0[4]) << " " << decimal_to_hex(H0[5]) << " " << decimal_to_hex(H0[6])
+         << " " << decimal_to_hex(H0[7]) << endl;
+    cout << "ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡ\n";
     string digest;
     for ( int i = 0; i < 8; i++ )
     {
@@ -245,9 +326,9 @@ string SHA2_512( string message )
 }
 int main()
 {
-    cout << "Enter message : \n";
+    cout << "메시지를 입력하세요 : \n";
     string message;
     getline( cin, message );
     string digest = SHA2_512( message );
-    cout << binary_to_HEX( digest ) << endl;
+//    cout << "해쉬 값 = " << binary_to_HEX( digest ) << endl;
 }
